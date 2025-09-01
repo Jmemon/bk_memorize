@@ -1,34 +1,22 @@
 {
-  "indexed_at": "2025-08-31T22:03:33.823711",
+  "indexed_at": "2025-09-01T02:31:44.412786",
   "root": ".",
   "project_structure": {
     "type": "tree",
     "root": ".",
     "tree": [
       ".",
-      "\u251c\u2500\u2500 supabase/ (2 files)",
+      "\u251c\u2500\u2500 flashcards/ (2 files)",
+      "\u251c\u2500\u2500 scripts/ (1 files)",
+      "\u251c\u2500\u2500 supabase/ (3 files)",
       "\u2502   \u251c\u2500\u2500 functions/ (1 files)",
       "\u2502   \u2502   \u2514\u2500\u2500 check-answer/ (1 files)",
-      "\u2502   \u2514\u2500\u2500 migrations/ (1 files)",
+      "\u2502   \u2514\u2500\u2500 migrations/ (2 files)",
+      "\u251c\u2500\u2500 package.json",
       "\u2514\u2500\u2500 README.md"
     ]
   },
   "documentation_map": {
-    "karamazov_chain.md": {
-      "sections": [
-        "The Brothers Karamazov - Anki Flashcards",
-        "Book I: The History of a Family",
-        "Card 1",
-        "Card 2",
-        "Card 3",
-        "Card 4",
-        "Card 5",
-        "Card 6",
-        "Card 7",
-        "Card 8"
-      ],
-      "architecture_hints": []
-    },
     "README.md": {
       "sections": [
         "Brothers Karamazov Flashcard Study App",
@@ -41,21 +29,6 @@
         "Deployment Options",
         "Option 1: Vercel (Recommended)",
         "Option 2: Netlify"
-      ],
-      "architecture_hints": []
-    },
-    "karamazov_chapters.md": {
-      "sections": [
-        "The Brothers Karamazov - Chapter Summary Cards",
-        "Book I: The History of a Family",
-        "Card 1",
-        "Card 2",
-        "Card 3",
-        "Card 4",
-        "Card 5",
-        "Book II: An Inappropriate Gathering",
-        "Card 6",
-        "Card 7"
       ],
       "architecture_hints": []
     },
@@ -76,23 +49,29 @@
     }
   },
   "directory_purposes": {
+    "scripts": "Build and utility scripts",
     "supabase/migrations": "Database migration files"
   },
   "stats": {
-    "total_files": 5,
-    "total_directories": 4,
+    "total_files": 10,
+    "total_directories": 7,
     "fully_parsed": {
+      "javascript": 1,
       "typescript": 1
     },
     "listed_only": {
-      "json": 2,
+      "json": 5,
       "html": 1,
-      "sql": 1
+      "sql": 2
     },
-    "markdown_files": 5
+    "markdown_files": 2
   },
   "files": {
-    "karamazov_chapters.json": {
+    "package-lock.json": {
+      "language": "json",
+      "parsed": false
+    },
+    "package.json": {
       "language": "json",
       "parsed": false
     },
@@ -100,11 +79,44 @@
       "language": "html",
       "parsed": false
     },
-    "karamazov_chain.json": {
+    "PROJECT_INDEX.json": {
       "language": "json",
       "parsed": false
     },
+    "flashcards/karamazov_chapters.json": {
+      "language": "json",
+      "parsed": false
+    },
+    "flashcards/karamazov_chain.json": {
+      "language": "json",
+      "parsed": false
+    },
+    "scripts/generate_flashcard_migration.js": {
+      "language": "javascript",
+      "parsed": true,
+      "imports": [
+        "fs",
+        "path"
+      ],
+      "functions": {
+        "escapeSql": "(str)"
+      },
+      "classes": {},
+      "variables": [
+        "fs",
+        "path",
+        "chainData",
+        "chaptersData",
+        "sql",
+        "migrationPath"
+      ],
+      "call_graph": {}
+    },
     "supabase/migrations/001_initial_schema.sql": {
+      "language": "sql",
+      "parsed": false
+    },
+    "supabase/migrations/002_populate_flashcards.sql": {
       "language": "sql",
       "parsed": false
     },
@@ -134,9 +146,13 @@
     }
   },
   "dependency_graph": {
+    "scripts/generate_flashcard_migration.js": [
+      "fs",
+      "path"
+    ],
     "supabase/functions/check-answer/index.ts": [
       "https://deno.land/std@0.168.0/http/server.ts"
     ]
   },
-  "staleness_check": 1756087413.832286
+  "staleness_check": 1756103504.437805
 }

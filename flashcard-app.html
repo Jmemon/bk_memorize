@@ -325,8 +325,8 @@
     
     <script>
         // Configuration - Replace with your actual Supabase URL and key
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const SUPABASE_URL = 'https://jpuwgxqktbifndafoewf.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwdXdneHFrdGJpZm5kYWZvZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2ODI2NzksImV4cCI6MjA3MjI1ODY3OX0.DhUiR7m1ANgY9GNVJX9-Xs5aiRCiWH-O0Zsf1WtTS3c';
         
         // Initialize Supabase client
         let supabase = null;
@@ -334,22 +334,10 @@
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
         
-        // Flashcard data from JSON - this will be synced to database
-        const mockData = {
-            chain: [
-                { front: "Who is the eldest Karamazov brother?", back: "Dmitri (Mitya)" },
-                { front: "What is Ivan's famous philosophical argument?", back: "The Grand Inquisitor" },
-                { front: "Who is the youngest Karamazov brother?", back: "Alexei (Alyosha)" },
-                { front: "What is the name of the Karamazov patriarch?", back: "Fyodor Pavlovich" },
-                { front: "Who is suspected of murdering Fyodor?", back: "Dmitri is suspected, but Smerdyakov did it" }
-            ],
-            chapters: [
-                { front: "Chapter 1: What family is introduced?", back: "The Karamazov family" },
-                { front: "Chapter 5: Who visits the monastery?", back: "The Karamazov family visits Elder Zosima" },
-                { front: "Chapter 9: What philosophical tale does Ivan tell?", back: "The Grand Inquisitor" },
-                { front: "Book XI: Who confesses to the murder?", back: "Smerdyakov confesses to Ivan" },
-                { front: "Final chapter: What is Alyosha's speech about?", back: "About memory, love, and hope for the future" }
-            ]
+        // Flashcard data - will be loaded from database
+        let flashcardData = {
+            chain: [],
+            chapters: []
         };
 
         // App state
@@ -373,192 +361,160 @@
             }
 
             async init() {
-                // Sync flashcard data to database if using Supabase
                 if (supabase) {
-                    await this.syncFlashcards();
+                    await this.loadFlashcards();
                 } else {
-                    // Fallback to localStorage
-                    if (!localStorage.getItem('accounts')) {
-                        localStorage.setItem('accounts', JSON.stringify({}));
-                    }
-                    if (!localStorage.getItem('userProgress')) {
-                        localStorage.setItem('userProgress', JSON.stringify({}));
-                    }
+                    throw new Error('No Supabase connection available');
                 }
             }
 
-            async syncFlashcards() {
+            async loadFlashcards() {
                 try {
-                    // Check if flashcards already exist
-                    const { data: existingCards } = await supabase
+                    // Load flashcards from database
+                    const { data: cards, error } = await supabase
                         .from('flashcards')
-                        .select('*')
-                        .limit(1);
-
-                    if (existingCards && existingCards.length > 0) {
-                        return; // Cards already synced
-                    }
-
-                    // Get set IDs
-                    const { data: sets } = await supabase
-                        .from('flashcard_sets')
-                        .select('id, set_id');
-
-                    const setMap = {};
-                    sets.forEach(set => {
-                        setMap[set.set_id] = set.id;
-                    });
-
-                    // Insert flashcards from mockData
-                    for (const [setKey, cards] of Object.entries(mockData)) {
-                        if (setMap[setKey]) {
-                            const cardsToInsert = cards.map((card, index) => ({
-                                set_id: setMap[setKey],
-                                card_index: index,
-                                front: card.front,
-                                back: card.back
-                            }));
-
-                            await supabase
-                                .from('flashcards')
-                                .insert(cardsToInsert);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error syncing flashcards:', error);
-                }
-            }
-
-            async getAccounts() {
-                if (supabase) {
-                    // Supabase handles authentication differently
-                    return null;
-                } else {
-                    return JSON.parse(localStorage.getItem('accounts') || '{}');
-                }
-            }
-
-            async saveAccount(username, password) {
-                if (supabase) {
-                    // Use Supabase Auth for sign up
-                    const { data, error } = await supabase.auth.signUp({
-                        email: username + '@placeholder.com', // Convert username to email format
-                        password: password,
-                        options: {
-                            data: {
-                                username: username
-                            }
-                        }
-                    });
-                    if (error) throw error;
-                    return data;
-                } else {
-                    const accounts = this.getAccounts();
-                    accounts[username] = password;
-                    localStorage.setItem('accounts', JSON.stringify(accounts));
-                }
-            }
-
-            async signIn(username, password) {
-                if (supabase) {
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email: username + '@placeholder.com',
-                        password: password
-                    });
-                    if (error) throw error;
-                    return data;
-                } else {
-                    const accounts = await this.getAccounts();
-                    return accounts[username] === password;
-                }
-            }
-
-            async getUserProgress(username) {
-                if (supabase) {
-                    const { data: user } = await supabase.auth.getUser();
-                    if (!user.user) return {};
-
-                    const { data: progress } = await supabase
-                        .from('user_progress')
                         .select(`
                             *,
-                            flashcards!inner(card_index),
-                            flashcard_sets!inner(set_id)
+                            flashcard_sets!inner(set_id, set_name)
                         `)
-                        .eq('user_id', user.user.id);
+                        .order('card_index');
 
-                    // Format progress data
-                    const formattedProgress = {};
-                    progress?.forEach(p => {
-                        const setId = p.flashcard_sets.set_id;
-                        if (!formattedProgress[setId]) {
-                            formattedProgress[setId] = { correct: [], seen: [] };
-                        }
-                        const cardIndex = p.flashcards.card_index;
-                        formattedProgress[setId].seen.push(cardIndex);
-                        if (p.is_correct) {
-                            formattedProgress[setId].correct.push(cardIndex);
+                    if (error) throw error;
+
+                    if (!cards || cards.length === 0) {
+                        throw new Error('No flashcards found in database. Please run the migration to populate flashcard data.');
+                    }
+
+                    // Organize cards by set
+                    flashcardData = { chain: [], chapters: [] };
+                    
+                    cards.forEach(card => {
+                        const setId = card.flashcard_sets.set_id;
+                        if (flashcardData[setId]) {
+                            flashcardData[setId].push({
+                                front: card.front,
+                                back: card.back,
+                                index: card.card_index
+                            });
                         }
                     });
 
-                    return formattedProgress;
-                } else {
-                    const progress = JSON.parse(localStorage.getItem('userProgress') || '{}');
-                    return progress[username] || {};
+                    console.log(`Loaded ${cards.length} flashcards from database`);
+                    console.log(`Chain: ${flashcardData.chain.length} cards, Chapters: ${flashcardData.chapters.length} cards`);
+                } catch (error) {
+                    console.error('Error loading flashcards:', error);
+                    throw error;
                 }
             }
 
-            async saveUserProgress(username, setId, stats) {
-                if (supabase) {
-                    const { data: user } = await supabase.auth.getUser();
-                    if (!user.user) return;
-
-                    // Get set UUID
-                    const { data: sets } = await supabase
-                        .from('flashcard_sets')
-                        .select('id')
-                        .eq('set_id', setId)
-                        .single();
-
-                    if (!sets) return;
-
-                    // Get flashcards for this set
-                    const { data: flashcards } = await supabase
-                        .from('flashcards')
-                        .select('id, card_index')
-                        .eq('set_id', sets.id);
-
-                    // Update progress for each card
-                    for (const card of flashcards) {
-                        const cardIndex = card.card_index;
-                        const isCorrect = stats.correct.has(cardIndex);
-                        const wasSeen = stats.seen.has(cardIndex);
-
-                        if (wasSeen) {
-                            await supabase
-                                .from('user_progress')
-                                .upsert({
-                                    user_id: user.user.id,
-                                    set_id: sets.id,
-                                    card_id: card.id,
-                                    is_correct: isCorrect,
-                                    times_seen: 1, // This could be incremented
-                                    times_correct: isCorrect ? 1 : 0,
-                                    last_seen: new Date().toISOString()
-                                });
+            async signUp(email, password, username) {
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            username: username
                         }
                     }
-                } else {
-                    const progress = JSON.parse(localStorage.getItem('userProgress') || '{}');
-                    if (!progress[username]) progress[username] = {};
-                    if (!progress[username][setId]) progress[username][setId] = { correct: [], seen: [] };
-                    
-                    // Merge stats
-                    const existing = progress[username][setId];
-                    existing.correct = [...new Set([...existing.correct, ...Array.from(stats.correct)])];
-                    existing.seen = [...new Set([...existing.seen, ...Array.from(stats.seen)])];
-                    
-                    localStorage.setItem('userProgress', JSON.stringify(progress));
+                });
+                if (error) throw error;
+                return data;
+            }
+
+            async signIn(email, password) {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                if (error) throw error;
+                return data;
+            }
+
+            async signOut() {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+            }
+
+            async getCurrentUser() {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) throw error;
+                return user;
+            }
+
+            async getUserProgress() {
+                const user = await this.getCurrentUser();
+                if (!user) return {};
+
+                const { data: progress, error } = await supabase
+                    .from('user_progress')
+                    .select(`
+                        *,
+                        flashcards!inner(card_index),
+                        flashcard_sets!inner(set_id)
+                    `)
+                    .eq('user_id', user.id);
+
+                if (error) throw error;
+
+                // Format progress data
+                const formattedProgress = {};
+                progress?.forEach(p => {
+                    const setId = p.flashcard_sets.set_id;
+                    if (!formattedProgress[setId]) {
+                        formattedProgress[setId] = { correct: [], seen: [] };
+                    }
+                    const cardIndex = p.flashcards.card_index;
+                    formattedProgress[setId].seen.push(cardIndex);
+                    if (p.is_correct) {
+                        formattedProgress[setId].correct.push(cardIndex);
+                    }
+                });
+
+                return formattedProgress;
+            }
+
+            async saveUserProgress(setId, stats) {
+                const user = await this.getCurrentUser();
+                if (!user) return;
+
+                // Get set UUID
+                const { data: sets, error: setError } = await supabase
+                    .from('flashcard_sets')
+                    .select('id')
+                    .eq('set_id', setId)
+                    .single();
+
+                if (setError || !sets) throw new Error(`Set ${setId} not found`);
+
+                // Get flashcards for this set
+                const { data: flashcards, error: cardsError } = await supabase
+                    .from('flashcards')
+                    .select('id, card_index')
+                    .eq('set_id', sets.id);
+
+                if (cardsError) throw cardsError;
+
+                // Update progress for each card
+                for (const card of flashcards) {
+                    const cardIndex = card.card_index;
+                    const isCorrect = stats.correct.has(cardIndex);
+                    const wasSeen = stats.seen.has(cardIndex);
+
+                    if (wasSeen) {
+                        const { error } = await supabase
+                            .from('user_progress')
+                            .upsert({
+                                user_id: user.id,
+                                set_id: sets.id,
+                                card_id: card.id,
+                                is_correct: isCorrect,
+                                times_seen: 1, // This could be incremented
+                                times_correct: isCorrect ? 1 : 0,
+                                last_seen: new Date().toISOString()
+                            });
+                        
+                        if (error) console.error('Error saving progress for card:', card.card_index, error);
+                    }
                 }
             }
         }
@@ -577,46 +533,27 @@
             }
 
             try {
-                if (supabase) {
-                    // First try to sign in
+                // Convert username to email format for Supabase Auth
+                const email = username + '@flashcards.local';
+                
+                // First try to sign in
+                try {
+                    const signInResult = await db.signIn(email, password);
+                    currentUser = username;
+                    authMessage.textContent = '';
+                    await showHome();
+                } catch (signInError) {
+                    // If sign in fails, try to sign up
                     try {
-                        const signInResult = await db.signIn(username, password);
+                        await db.signUp(email, password, username);
                         currentUser = username;
-                        authMessage.textContent = '';
-                        showHome();
-                    } catch (signInError) {
-                        // If sign in fails, try to sign up
-                        try {
-                            await db.saveAccount(username, password);
-                            currentUser = username;
-                            authMessage.textContent = 'Account created successfully!';
-                            setTimeout(() => {
-                                authMessage.textContent = '';
-                                showHome();
-                            }, 1500);
-                        } catch (signUpError) {
-                            authMessage.textContent = 'Error: ' + signUpError.message;
-                        }
-                    }
-                } else {
-                    // Fallback to localStorage
-                    const accounts = await db.getAccounts();
-
-                    if (accounts[username]) {
-                        // Login
-                        if (accounts[username] === password) {
-                            currentUser = username;
+                        authMessage.textContent = 'Account created successfully!';
+                        setTimeout(async () => {
                             authMessage.textContent = '';
-                            showHome();
-                        } else {
-                            authMessage.textContent = 'Incorrect password';
-                        }
-                    } else {
-                        // Sign up
-                        await db.saveAccount(username, password);
-                        currentUser = username;
-                        authMessage.textContent = '';
-                        showHome();
+                            await showHome();
+                        }, 1500);
+                    } catch (signUpError) {
+                        authMessage.textContent = 'Error: ' + signUpError.message;
                     }
                 }
             } catch (error) {
@@ -625,7 +562,12 @@
             }
         }
 
-        function logout() {
+        async function logout() {
+            try {
+                await db.signOut();
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
             currentUser = null;
             currentSet = null;
             document.getElementById('username').value = '';
@@ -643,15 +585,15 @@
             
             // Show overall stats
             try {
-                const progress = await db.getUserProgress(currentUser);
+                const progress = await db.getUserProgress();
                 let statsHTML = '';
-                if (progress.chain) {
-                    const chainScore = Math.round((progress.chain.correct.length / mockData.chain.length) * 100);
-                    statsHTML += `<div>Chain: ${progress.chain.correct.length}/${mockData.chain.length} correct (${chainScore}%)</div>`;
+                if (progress.chain && flashcardData.chain.length > 0) {
+                    const chainScore = Math.round((progress.chain.correct.length / flashcardData.chain.length) * 100);
+                    statsHTML += `<div>Chain: ${progress.chain.correct.length}/${flashcardData.chain.length} correct (${chainScore}%)</div>`;
                 }
-                if (progress.chapters) {
-                    const chaptersScore = Math.round((progress.chapters.correct.length / mockData.chapters.length) * 100);
-                    statsHTML += `<div>Chapters: ${progress.chapters.correct.length}/${mockData.chapters.length} correct (${chaptersScore}%)</div>`;
+                if (progress.chapters && flashcardData.chapters.length > 0) {
+                    const chaptersScore = Math.round((progress.chapters.correct.length / flashcardData.chapters.length) * 100);
+                    statsHTML += `<div>Chapters: ${progress.chapters.correct.length}/${flashcardData.chapters.length} correct (${chaptersScore}%)</div>`;
                 }
                 document.getElementById('overallStats').innerHTML = statsHTML || '<div>No progress yet - start studying!</div>';
             } catch (error) {
@@ -662,7 +604,7 @@
 
         async function startSet(setId) {
             currentSet = setId;
-            currentCards = [...mockData[setId]];
+            currentCards = [...flashcardData[setId]];
             sessionStats = {
                 seen: new Set(),
                 correct: new Set(),
@@ -671,7 +613,7 @@
             
             // Load previous progress
             try {
-                const progress = await db.getUserProgress(currentUser);
+                const progress = await db.getUserProgress();
                 if (progress[setId]) {
                     progress[setId].seen.forEach(i => sessionStats.seen.add(i));
                     progress[setId].correct.forEach(i => sessionStats.correct.add(i));
@@ -694,7 +636,7 @@
             // Save progress before going back
             if (currentSet && currentUser) {
                 try {
-                    await db.saveUserProgress(currentUser, currentSet, sessionStats);
+                    await db.saveUserProgress(currentSet, sessionStats);
                 } catch (error) {
                     console.error('Error saving progress:', error);
                 }
@@ -781,8 +723,8 @@
             try {
                 let assessment;
                 
-                if (supabase) {
-                    // Use Supabase Edge Function for secure API calls
+                // Try to use Supabase Edge Function, fall back to simple assessment
+                try {
                     const response = await supabase.functions.invoke('check-answer', {
                         body: {
                             question: card.front,
@@ -796,20 +738,19 @@
                     }
                     
                     assessment = response.data;
-                } else {
-                    // Fallback to simple assessment when no Supabase connection
-                    console.warn('No Supabase connection - using simple assessment');
+                } catch (edgeFunctionError) {
+                    console.warn('Edge function not available, using simple assessment:', edgeFunctionError.message);
                     assessment = simpleAssessment(userAnswer, correctAnswer);
                 }
                 
                 // Handle the assessment result
-                handleAssessmentResult(assessment, cardIdx);
+                await handleAssessmentResult(assessment, cardIdx);
                 
             } catch (error) {
                 console.error('Error checking answer:', error);
                 // Fallback to simple string comparison
                 const assessment = simpleAssessment(userAnswer, correctAnswer);
-                handleAssessmentResult(assessment, cardIdx);
+                await handleAssessmentResult(assessment, cardIdx);
             }
         }
 
@@ -835,7 +776,7 @@
             }
         }
 
-        function handleAssessmentResult(assessment, cardIdx) {
+        async function handleAssessmentResult(assessment, cardIdx) {
             // Update stats based on assessment
             if (assessment.result === "correct") {
                 sessionStats.correct.add(cardIdx);
@@ -863,7 +804,7 @@
             updateStats();
             if (currentCardIndex % 5 === 0 || currentCardIndex >= cardOrder.length) {
                 try {
-                    await db.saveUserProgress(currentUser, currentSet, sessionStats);
+                    await db.saveUserProgress(currentSet, sessionStats);
                 } catch (error) {
                     console.error('Error saving progress:', error);
                 }
@@ -891,7 +832,7 @@
             }
         }
 
-        function markCard(correct) {
+        async function markCard(correct) {
             // This function is no longer needed but kept for compatibility
             const cardIdx = cardOrder[currentCardIndex];
             
@@ -908,7 +849,7 @@
             // Save progress periodically
             if (currentCardIndex % 5 === 0 || currentCardIndex >= cardOrder.length) {
                 try {
-                    await db.saveUserProgress(currentUser, currentSet, sessionStats);
+                    await db.saveUserProgress(currentSet, sessionStats);
                 } catch (error) {
                     console.error('Error saving progress:', error);
                 }
