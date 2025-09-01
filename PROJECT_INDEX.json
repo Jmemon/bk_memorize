@@ -1,5 +1,5 @@
 {
-  "indexed_at": "2025-09-01T02:31:44.412786",
+  "indexed_at": "2025-09-01T02:39:36.269167",
   "root": ".",
   "project_structure": {
     "type": "tree",
@@ -60,23 +60,24 @@
       "typescript": 1
     },
     "listed_only": {
-      "json": 5,
       "html": 1,
+      "json": 5,
       "sql": 2
     },
     "markdown_files": 2
   },
   "files": {
+    "index.html": {
+      "language": "html",
+      "parsed": false,
+      "purpose": "Application entry point"
+    },
     "package-lock.json": {
       "language": "json",
       "parsed": false
     },
     "package.json": {
       "language": "json",
-      "parsed": false
-    },
-    "flashcard-app.html": {
-      "language": "html",
       "parsed": false
     },
     "PROJECT_INDEX.json": {
@@ -154,5 +155,5 @@
       "https://deno.land/std@0.168.0/http/server.ts"
     ]
   },
-  "staleness_check": 1756103504.437805
+  "staleness_check": 1756103976.292942
 }
