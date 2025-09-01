@@ -400,7 +400,7 @@
                         .from('flashcards')
                         .select(`
                             *,
-                            flashcard_sets!inner(set_id, set_name)
+                            flashcard_sets!inner(id, set_id)
                         `)
                         .order('card_index');
 
@@ -803,7 +803,7 @@
 
         async function startSet(setId) {
             currentSet = setId;
-            currentCards = [...flashcardData[setId]];
+            currentCards = flashcardData[setId];
             sessionStats = {
                 seen: new Set(),
                 correct: new Set(),
