@@ -1,0 +1,142 @@
+{
+  "indexed_at": "2025-08-31T22:03:33.823711",
+  "root": ".",
+  "project_structure": {
+    "type": "tree",
+    "root": ".",
+    "tree": [
+      ".",
+      "\u251c\u2500\u2500 supabase/ (2 files)",
+      "\u2502   \u251c\u2500\u2500 functions/ (1 files)",
+      "\u2502   \u2502   \u2514\u2500\u2500 check-answer/ (1 files)",
+      "\u2502   \u2514\u2500\u2500 migrations/ (1 files)",
+      "\u2514\u2500\u2500 README.md"
+    ]
+  },
+  "documentation_map": {
+    "karamazov_chain.md": {
+      "sections": [
+        "The Brothers Karamazov - Anki Flashcards",
+        "Book I: The History of a Family",
+        "Card 1",
+        "Card 2",
+        "Card 3",
+        "Card 4",
+        "Card 5",
+        "Card 6",
+        "Card 7",
+        "Card 8"
+      ],
+      "architecture_hints": []
+    },
+    "README.md": {
+      "sections": [
+        "Brothers Karamazov Flashcard Study App",
+        "Features",
+        "Setup Instructions",
+        "1. Supabase Setup",
+        "2. Edge Function Setup",
+        "3. Configure the App",
+        "4. Get Anthropic API Key",
+        "Deployment Options",
+        "Option 1: Vercel (Recommended)",
+        "Option 2: Netlify"
+      ],
+      "architecture_hints": []
+    },
+    "karamazov_chapters.md": {
+      "sections": [
+        "The Brothers Karamazov - Chapter Summary Cards",
+        "Book I: The History of a Family",
+        "Card 1",
+        "Card 2",
+        "Card 3",
+        "Card 4",
+        "Card 5",
+        "Book II: An Inappropriate Gathering",
+        "Card 6",
+        "Card 7"
+      ],
+      "architecture_hints": []
+    },
+    "arch.md": {
+      "sections": [
+        "Brothers Karamazov Flashcard App - Architecture",
+        "High-Level Architecture Flow",
+        "Detailed Component Architecture",
+        "1. Authentication System",
+        "2. Database Abstraction Layer",
+        "3. Flashcard Data Management",
+        "4. Study Session Management",
+        "5. Answer Assessment System",
+        "6. Progress Persistence",
+        "7. UI State Management"
+      ],
+      "architecture_hints": []
+    }
+  },
+  "directory_purposes": {
+    "supabase/migrations": "Database migration files"
+  },
+  "stats": {
+    "total_files": 5,
+    "total_directories": 4,
+    "fully_parsed": {
+      "typescript": 1
+    },
+    "listed_only": {
+      "json": 2,
+      "html": 1,
+      "sql": 1
+    },
+    "markdown_files": 5
+  },
+  "files": {
+    "karamazov_chapters.json": {
+      "language": "json",
+      "parsed": false
+    },
+    "flashcard-app.html": {
+      "language": "html",
+      "parsed": false
+    },
+    "karamazov_chain.json": {
+      "language": "json",
+      "parsed": false
+    },
+    "supabase/migrations/001_initial_schema.sql": {
+      "language": "sql",
+      "parsed": false
+    },
+    "supabase/functions/check-answer/index.ts": {
+      "language": "typescript",
+      "parsed": true,
+      "purpose": "Application entry point",
+      "imports": [
+        "https://deno.land/std@0.168.0/http/server.ts"
+      ],
+      "functions": {
+        "simpleAssessment": "(userAnswer: string, correctAnswer: string)"
+      },
+      "classes": {},
+      "variables": [
+        "corsHeaders",
+        "anthropicApiKey",
+        "response",
+        "data",
+        "responseText",
+        "cleanedResponse",
+        "fallbackAssessment",
+        "userLower",
+        "correctLower"
+      ],
+      "call_graph": {}
+    }
+  },
+  "dependency_graph": {
+    "supabase/functions/check-answer/index.ts": [
+      "https://deno.land/std@0.168.0/http/server.ts"
+    ]
+  },
+  "staleness_check": 1756087413.832286
+}
