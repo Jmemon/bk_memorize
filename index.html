@@ -316,7 +316,7 @@
                 <!-- Default single input for most sets -->
                 <div id="singleAnswerInput">
                     <input type="text" id="userAnswer" placeholder="Type your answer here..." onkeypress="handleAnswerKeypress(event)" />
-                    <button class="btn btn-success" onclick="checkAnswer()">Check Answer</button>
+                    <button class="btn btn-success" onclick="handleAnswerOrNext()">Check Answer</button>
                 </div>
                 
                 <!-- Chain set specific UI with before/after inputs -->
@@ -327,7 +327,7 @@
                     <div class="input-group">
                         <input type="text" id="afterAnswer" placeholder="After..." onkeypress="handleChainKeypress(event)" />
                     </div>
-                    <button class="btn btn-success" onclick="checkChainAnswer()">Check Answer</button>
+                    <button class="btn btn-success" onclick="handleChainAnswerOrNext()">Check Answer</button>
                 </div>
                 
                 <div id="feedback" class="feedback hidden"></div>
@@ -935,8 +935,15 @@
             sessionStats.seen.add(cardIdx);
             updateStats();
             
-            // Reset the next card flag
+            // Reset the next card flag and button text
             window.waitingForNextCard = false;
+            
+            // Reset button text
+            if (currentSet === 'chain') {
+                document.querySelector('#chainAnswerInputs .btn').textContent = 'Check Answer';
+            } else {
+                document.querySelector('#singleAnswerInput .btn').textContent = 'Check Answer';
+            }
         }
 
         function flipCard() {
@@ -1056,6 +1063,13 @@
             
             // Set flag to wait for user to press Enter
             window.waitingForNextCard = true;
+            
+            // Update button text to indicate next card
+            if (currentSet === 'chain') {
+                document.querySelector('#chainAnswerInputs .btn').textContent = 'Next Card';
+            } else {
+                document.querySelector('#singleAnswerInput .btn').textContent = 'Next Card';
+            }
         }
 
         function showFeedback(message, type) {
@@ -1103,6 +1117,22 @@
             
             document.getElementById('feedback').classList.add('hidden');
             window.waitingForNextCard = false;
+        }
+
+        function handleAnswerOrNext() {
+            if (window.waitingForNextCard) {
+                moveToNextCard();
+            } else {
+                checkAnswer();
+            }
+        }
+
+        function handleChainAnswerOrNext() {
+            if (window.waitingForNextCard) {
+                moveToNextCard();
+            } else {
+                checkChainAnswer();
+            }
         }
 
         async function checkChainAnswer() {
