@@ -561,22 +561,34 @@
                         await showHome();
                     }, 1000);
                 } catch (signInError) {
-                    console.log('Sign in failed, trying to sign up:', signInError.message);
+                    console.log('Sign in failed:', signInError.message);
                     
-                    // If sign in fails, try to sign up
-                    try {
-                        const signUpResult = await db.signUp(username, password);
-                        console.log('Sign up successful:', signUpResult);
-                        currentUser = username;
-                        authMessage.textContent = 'Account created successfully!';
+                    // Only try to sign up if the error indicates user doesn't exist
+                    if (signInError.message.includes('Invalid credentials') || 
+                        signInError.message.includes('Signin failed')) {
+                        console.log('User might not exist, trying to sign up...');
                         
-                        setTimeout(async () => {
-                            authMessage.textContent = '';
-                            await showHome();
-                        }, 1500);
-                    } catch (signUpError) {
-                        console.error('Sign up failed:', signUpError);
-                        authMessage.textContent = 'Error: ' + signUpError.message;
+                        try {
+                            const signUpResult = await db.signUp(username, password);
+                            console.log('Sign up successful:', signUpResult);
+                            currentUser = username;
+                            authMessage.textContent = 'Account created successfully!';
+                            
+                            setTimeout(async () => {
+                                authMessage.textContent = '';
+                                await showHome();
+                            }, 1500);
+                        } catch (signUpError) {
+                            console.error('Sign up failed:', signUpError);
+                            if (signUpError.message.includes('Username already exists')) {
+                                authMessage.textContent = 'Account exists but password is incorrect. Please check your password.';
+                            } else {
+                                authMessage.textContent = 'Error: ' + signUpError.message;
+                            }
+                        }
+                    } else {
+                        // For other errors, don't try signup
+                        authMessage.textContent = 'Login failed: ' + signInError.message;
                     }
                 }
             } catch (error) {
