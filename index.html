@@ -348,6 +348,7 @@
         let cardOrder = [];
         let isFlipped = false;
         let mode = 'random';
+        let currentSessionId = null;
         let sessionStats = {
             seen: new Set(),
             correct: new Set(),
@@ -357,14 +358,38 @@
         // Database class with Supabase integration and localStorage fallback
         class Database {
             constructor() {
+                this.initialized = false;
                 this.init();
             }
 
             async init() {
-                if (supabase) {
-                    await this.loadFlashcards();
-                } else {
+                if (!supabase) {
+                    console.error('No Supabase connection available');
                     throw new Error('No Supabase connection available');
+                }
+
+                try {
+                    console.log('Initializing database connection...');
+                    
+                    // Test the connection first
+                    const { data, error } = await supabase
+                        .from('flashcard_sets')
+                        .select('count(*)')
+                        .limit(1);
+                    
+                    if (error) {
+                        console.error('Database connection test failed:', error);
+                        throw error;
+                    }
+                    
+                    console.log('Database connection successful');
+                    
+                    await this.loadFlashcards();
+                    this.initialized = true;
+                    console.log('Database initialized successfully');
+                } catch (error) {
+                    console.error('Failed to initialize database:', error);
+                    throw error;
                 }
             }
 
@@ -418,7 +443,42 @@
                     }
                 });
                 if (error) throw error;
+                
+                // Also create entry in custom accounts table
+                if (data.user) {
+                    await this.createAccountRecord(data.user.id, username, password);
+                }
+                
                 return data;
+            }
+
+            async createAccountRecord(userId, username, password) {
+                try {
+                    // Check if account already exists
+                    const { data: existing } = await supabase
+                        .from('accounts')
+                        .select('id')
+                        .eq('id', userId)
+                        .single();
+                    
+                    if (!existing) {
+                        const { error } = await supabase
+                            .from('accounts')
+                            .insert({
+                                id: userId,
+                                username: username,
+                                password_hash: password // In production, this should be hashed
+                            });
+                        
+                        if (error) {
+                            console.error('Error creating account record:', error);
+                        } else {
+                            console.log('Account record created successfully');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in createAccountRecord:', error);
+                }
             }
 
             async signIn(email, password) {
@@ -427,6 +487,13 @@
                     password: password
                 });
                 if (error) throw error;
+                
+                // Ensure account record exists in custom table
+                if (data.user) {
+                    const username = data.user.user_metadata?.username || data.user.email.split('@')[0];
+                    await this.createAccountRecord(data.user.id, username, password);
+                }
+                
                 return data;
             }
 
@@ -445,76 +512,190 @@
                 const user = await this.getCurrentUser();
                 if (!user) return {};
 
-                const { data: progress, error } = await supabase
-                    .from('user_progress')
-                    .select(`
-                        *,
-                        flashcards!inner(card_index),
-                        flashcard_sets!inner(set_id)
-                    `)
-                    .eq('user_id', user.id);
+                try {
+                    const { data: progress, error } = await supabase
+                        .from('user_progress')
+                        .select(`
+                            *,
+                            flashcards!inner(card_index),
+                            flashcard_sets!inner(set_id)
+                        `)
+                        .eq('user_id', user.id);
 
-                if (error) throw error;
-
-                // Format progress data
-                const formattedProgress = {};
-                progress?.forEach(p => {
-                    const setId = p.flashcard_sets.set_id;
-                    if (!formattedProgress[setId]) {
-                        formattedProgress[setId] = { correct: [], seen: [] };
+                    if (error) {
+                        console.error('Error fetching user progress:', error);
+                        return {};
                     }
-                    const cardIndex = p.flashcards.card_index;
-                    formattedProgress[setId].seen.push(cardIndex);
-                    if (p.is_correct) {
-                        formattedProgress[setId].correct.push(cardIndex);
-                    }
-                });
 
-                return formattedProgress;
+                    // Format progress data
+                    const formattedProgress = {};
+                    progress?.forEach(p => {
+                        const setId = p.flashcard_sets.set_id;
+                        if (!formattedProgress[setId]) {
+                            formattedProgress[setId] = { correct: [], seen: [] };
+                        }
+                        const cardIndex = p.flashcards.card_index;
+                        formattedProgress[setId].seen.push(cardIndex);
+                        if (p.is_correct) {
+                            formattedProgress[setId].correct.push(cardIndex);
+                        }
+                    });
+
+                    return formattedProgress;
+                } catch (error) {
+                    console.error('Unexpected error in getUserProgress:', error);
+                    return {};
+                }
+            }
+
+            async createStudySession(setId) {
+                const user = await this.getCurrentUser();
+                if (!user) return null;
+
+                try {
+                    // Get set UUID
+                    const { data: sets, error: setError } = await supabase
+                        .from('flashcard_sets')
+                        .select('id')
+                        .eq('set_id', setId)
+                        .single();
+
+                    if (setError || !sets) {
+                        console.error(`Set ${setId} not found:`, setError);
+                        return null;
+                    }
+
+                    const { data, error } = await supabase
+                        .from('study_sessions')
+                        .insert({
+                            user_id: user.id,
+                            set_id: sets.id,
+                            cards_seen: 0,
+                            cards_correct: 0,
+                            session_score: 0,
+                            started_at: new Date().toISOString()
+                        })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Error creating study session:', error);
+                        return null;
+                    }
+
+                    console.log('Study session created:', data.id);
+                    return data.id;
+                } catch (error) {
+                    console.error('Unexpected error creating study session:', error);
+                    return null;
+                }
+            }
+
+            async updateStudySession(sessionId, stats) {
+                if (!sessionId) return;
+
+                try {
+                    const totalSeen = stats.seen.size;
+                    const totalCorrect = stats.correct.size;
+                    const score = totalSeen > 0 ? Math.round((totalCorrect / totalSeen) * 100) : 0;
+
+                    const { error } = await supabase
+                        .from('study_sessions')
+                        .update({
+                            cards_seen: totalSeen,
+                            cards_correct: totalCorrect,
+                            session_score: score,
+                            ended_at: new Date().toISOString()
+                        })
+                        .eq('id', sessionId);
+
+                    if (error) {
+                        console.error('Error updating study session:', error);
+                    } else {
+                        console.log(`Study session updated - seen: ${totalSeen}, correct: ${totalCorrect}, score: ${score}%`);
+                    }
+                } catch (error) {
+                    console.error('Unexpected error updating study session:', error);
+                }
             }
 
             async saveUserProgress(setId, stats) {
                 const user = await this.getCurrentUser();
-                if (!user) return;
+                if (!user) {
+                    console.error('No authenticated user found');
+                    return;
+                }
 
-                // Get set UUID
-                const { data: sets, error: setError } = await supabase
-                    .from('flashcard_sets')
-                    .select('id')
-                    .eq('set_id', setId)
-                    .single();
+                try {
+                    // Get set UUID
+                    const { data: sets, error: setError } = await supabase
+                        .from('flashcard_sets')
+                        .select('id')
+                        .eq('set_id', setId)
+                        .single();
 
-                if (setError || !sets) throw new Error(`Set ${setId} not found`);
-
-                // Get flashcards for this set
-                const { data: flashcards, error: cardsError } = await supabase
-                    .from('flashcards')
-                    .select('id, card_index')
-                    .eq('set_id', sets.id);
-
-                if (cardsError) throw cardsError;
-
-                // Update progress for each card
-                for (const card of flashcards) {
-                    const cardIndex = card.card_index;
-                    const isCorrect = stats.correct.has(cardIndex);
-                    const wasSeen = stats.seen.has(cardIndex);
-
-                    if (wasSeen) {
-                        const { error } = await supabase
-                            .from('user_progress')
-                            .upsert({
-                                user_id: user.id,
-                                set_id: sets.id,
-                                card_id: card.id,
-                                is_correct: isCorrect,
-                                times_seen: 1, // This could be incremented
-                                times_correct: isCorrect ? 1 : 0,
-                                last_seen: new Date().toISOString()
-                            });
-                        
-                        if (error) console.error('Error saving progress for card:', card.card_index, error);
+                    if (setError || !sets) {
+                        console.error(`Set ${setId} not found:`, setError);
+                        return;
                     }
+
+                    // Get flashcards for this set
+                    const { data: flashcards, error: cardsError } = await supabase
+                        .from('flashcards')
+                        .select('id, card_index')
+                        .eq('set_id', sets.id);
+
+                    if (cardsError) {
+                        console.error('Error fetching flashcards:', cardsError);
+                        return;
+                    }
+
+                    console.log(`Saving progress for user ${user.id}, set ${setId}`);
+                    console.log(`Stats - seen: ${stats.seen.size}, correct: ${stats.correct.size}`);
+
+                    // Update progress for each card
+                    for (const card of flashcards) {
+                        const cardIndex = card.card_index;
+                        const isCorrect = stats.correct.has(cardIndex);
+                        const wasSeen = stats.seen.has(cardIndex);
+
+                        if (wasSeen) {
+                            console.log(`Updating card ${cardIndex}: seen=${wasSeen}, correct=${isCorrect}`);
+                            
+                            // First try to get existing progress
+                            const { data: existingProgress } = await supabase
+                                .from('user_progress')
+                                .select('times_seen, times_correct')
+                                .eq('user_id', user.id)
+                                .eq('card_id', card.id)
+                                .single();
+
+                            const prevTimesSeen = existingProgress?.times_seen || 0;
+                            const prevTimesCorrect = existingProgress?.times_correct || 0;
+
+                            const { error } = await supabase
+                                .from('user_progress')
+                                .upsert({
+                                    user_id: user.id,
+                                    set_id: sets.id,
+                                    card_id: card.id,
+                                    is_correct: isCorrect,
+                                    times_seen: prevTimesSeen + 1,
+                                    times_correct: prevTimesCorrect + (isCorrect ? 1 : 0),
+                                    last_seen: new Date().toISOString()
+                                }, {
+                                    onConflict: 'user_id,card_id'
+                                });
+                            
+                            if (error) {
+                                console.error('Error saving progress for card:', card.card_index, error);
+                            } else {
+                                console.log(`Successfully saved progress for card ${cardIndex}`);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Unexpected error saving user progress:', error);
                 }
             }
         }
@@ -532,27 +713,45 @@
                 return;
             }
 
+            if (password.length < 6) {
+                authMessage.textContent = 'Password must be at least 6 characters';
+                return;
+            }
+
             try {
                 // Convert username to email format for Supabase Auth
-                const email = username + '@example.com';
+                const email = username.toLowerCase() + '@flashcards.local';
+                
+                console.log(`Attempting authentication for: ${email}`);
+                authMessage.textContent = 'Authenticating...';
                 
                 // First try to sign in
                 try {
                     const signInResult = await db.signIn(email, password);
+                    console.log('Sign in successful:', signInResult);
                     currentUser = username;
-                    authMessage.textContent = '';
-                    await showHome();
+                    authMessage.textContent = 'Logged in successfully!';
+                    
+                    setTimeout(async () => {
+                        authMessage.textContent = '';
+                        await showHome();
+                    }, 1000);
                 } catch (signInError) {
+                    console.log('Sign in failed, trying to sign up:', signInError.message);
+                    
                     // If sign in fails, try to sign up
                     try {
-                        await db.signUp(email, password, username);
+                        const signUpResult = await db.signUp(email, password, username);
+                        console.log('Sign up successful:', signUpResult);
                         currentUser = username;
                         authMessage.textContent = 'Account created successfully!';
+                        
                         setTimeout(async () => {
                             authMessage.textContent = '';
                             await showHome();
                         }, 1500);
                     } catch (signUpError) {
+                        console.error('Sign up failed:', signUpError);
                         authMessage.textContent = 'Error: ' + signUpError.message;
                     }
                 }
@@ -611,6 +810,9 @@
                 wrong: new Set()
             };
             
+            // Create a new study session
+            currentSessionId = await db.createStudySession(setId);
+            
             // Load previous progress
             try {
                 const progress = await db.getUserProgress();
@@ -633,14 +835,18 @@
         }
 
         async function backToHome() {
-            // Save progress before going back
+            // Save progress and update session before going back
             if (currentSet && currentUser) {
                 try {
                     await db.saveUserProgress(currentSet, sessionStats);
+                    await db.updateStudySession(currentSessionId, sessionStats);
                 } catch (error) {
                     console.error('Error saving progress:', error);
                 }
             }
+            
+            // Reset session
+            currentSessionId = null;
             await showHome();
         }
 
@@ -805,6 +1011,7 @@
             if (currentCardIndex % 5 === 0 || currentCardIndex >= cardOrder.length) {
                 try {
                     await db.saveUserProgress(currentSet, sessionStats);
+                    await db.updateStudySession(currentSessionId, sessionStats);
                 } catch (error) {
                     console.error('Error saving progress:', error);
                 }
