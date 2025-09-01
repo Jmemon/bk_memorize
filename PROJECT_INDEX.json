@@ -1,12 +1,15 @@
 {
-  "indexed_at": "2025-09-01T17:56:39.262343",
+  "indexed_at": "2025-09-01T18:16:18.925814",
   "root": ".",
   "project_structure": {
     "type": "tree",
     "root": ".",
     "tree": [
       ".",
+      "\u251c\u2500\u2500 api/ (5 files)",
+      "\u2502   \u2514\u2500\u2500 auth/ (3 files)",
       "\u251c\u2500\u2500 flashcards/ (2 files)",
+      "\u251c\u2500\u2500 lib/ (2 files)",
       "\u251c\u2500\u2500 scripts/ (1 files)",
       "\u251c\u2500\u2500 supabase/ (6 files)",
       "\u2502   \u251c\u2500\u2500 functions/ (4 files)",
@@ -53,19 +56,22 @@
   },
   "directory_purposes": {
     "scripts": "Build and utility scripts",
+    "lib": "Library code and shared modules",
+    "api": "API endpoints and route handlers",
     "supabase/migrations": "Database migration files",
+    "api/auth": "Authentication and authorization logic",
     "supabase/functions/auth": "Authentication and authorization logic"
   },
   "stats": {
-    "total_files": 13,
-    "total_directories": 10,
+    "total_files": 23,
+    "total_directories": 13,
     "fully_parsed": {
-      "javascript": 1,
+      "javascript": 10,
       "typescript": 4
     },
     "listed_only": {
       "html": 1,
-      "json": 5,
+      "json": 6,
       "sql": 2
     },
     "markdown_files": 2
@@ -75,6 +81,58 @@
       "language": "html",
       "parsed": false,
       "purpose": "Application entry point"
+    },
+    "vercel.json": {
+      "language": "json",
+      "parsed": false
+    },
+    "server.js": {
+      "language": "javascript",
+      "parsed": true,
+      "imports": [
+        "express",
+        "cors",
+        "bcryptjs",
+        "@supabase/supabase-js"
+      ],
+      "functions": {
+        "generateSessionToken": "()",
+        "hashPassword": "async (password)",
+        "verifyPassword": "async (password, hash)",
+        "requireAuth": "(req, res, next)"
+      },
+      "classes": {},
+      "constants": {
+        "PORT": "value"
+      },
+      "variables": [
+        "express",
+        "cors",
+        "bcrypt",
+        "app",
+        "supabase",
+        "sessions",
+        "email",
+        "passwordHash",
+        "sessionToken",
+        "isValid",
+        "token",
+        "session",
+        "flashcardData",
+        "setId",
+        "formattedProgress",
+        "cardIndex",
+        "isCorrect",
+        "wasSeen",
+        "prevTimesSeen",
+        "prevTimesCorrect",
+        "now"
+      ],
+      "call_graph": {}
+    },
+    "dev-server.js": {
+      "language": "javascript",
+      "parsed": false
     },
     "package-lock.json": {
       "language": "json",
@@ -116,6 +174,62 @@
         "migrationPath"
       ],
       "call_graph": {}
+    },
+    "lib/auth.js": {
+      "language": "javascript",
+      "parsed": true,
+      "imports": [
+        "jsonwebtoken"
+      ],
+      "functions": {
+        "generateToken": "(payload)",
+        "verifyToken": {
+          "signature": "(token)",
+          "called_by": [
+            "requireAuth"
+          ]
+        },
+        "requireAuth": {
+          "calls": [
+            "verifyToken"
+          ],
+          "signature": "(req)"
+        }
+      },
+      "classes": {},
+      "constants": {
+        "JWT_SECRET": "value"
+      },
+      "variables": [
+        "jwt",
+        "authHeader",
+        "token"
+      ],
+      "call_graph": {}
+    },
+    "lib/supabase.js": {
+      "language": "javascript",
+      "parsed": false
+    },
+    "api/flashcards.js": {
+      "language": "javascript",
+      "parsed": false
+    },
+    "api/progress.js": {
+      "language": "javascript",
+      "parsed": false
+    },
+    "api/auth/signin.js": {
+      "language": "javascript",
+      "parsed": false
+    },
+    "api/auth/signup.js": {
+      "language": "javascript",
+      "parsed": false
+    },
+    "api/auth/signout.js": {
+      "language": "javascript",
+      "parsed": false
     },
     "supabase/migrations/001_initial_schema.sql": {
       "language": "sql",
@@ -185,9 +299,18 @@
     }
   },
   "dependency_graph": {
+    "server.js": [
+      "express",
+      "cors",
+      "bcryptjs",
+      "@supabase/supabase-js"
+    ],
     "scripts/generate_flashcard_migration.js": [
       "fs",
       "path"
+    ],
+    "lib/auth.js": [
+      "jsonwebtoken"
     ],
     "supabase/functions/auth/index.ts": [
       "https://deno.land/std@0.168.0/http/server.ts",
@@ -198,5 +321,5 @@
       "https://deno.land/std@0.168.0/http/server.ts"
     ]
   },
-  "staleness_check": 1756158999.287277
+  "staleness_check": 1756160178.971329
 }

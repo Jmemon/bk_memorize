@@ -1,5 +1,28 @@
 {
+  "name": "flashcard-app",
+  "version": "1.0.0",
+  "description": "Secure flashcard study app",
+  "main": "server.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static files ready'",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2"
+  },
   "devDependencies": {
     "supabase": "^2.39.2"
-  }
+  },
+  "keywords": [
+    "flashcards",
+    "study",
+    "education"
+  ],
+  "author": "",
+  "license": "MIT"
 }

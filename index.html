@@ -339,11 +339,11 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
     <script>
-        // Configuration - using secure API endpoints
-        const API_BASE_URL = '/functions/v1';
+        // Configuration - using secure local API
+        const API_BASE_URL = '/api';
         let authToken = localStorage.getItem('authToken');
         
-        // Remove direct Supabase client - using secure endpoints instead
+        // No direct Supabase access - everything goes through secure server
         let supabase = null;
         
         // Flashcard data - will be loaded from database
@@ -388,11 +388,15 @@
 
             async loadFlashcards() {
                 try {
-                    const response = await this.apiCall('flashcards', {
-                        action: 'getFlashcards'
+                    const response = await fetch(`${API_BASE_URL}/flashcards`, {
+                        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
                     });
                     
-                    flashcardData = response;
+                    if (!response.ok) {
+                        throw new Error('Failed to load flashcards');
+                    }
+                    
+                    flashcardData = await response.json();
                     console.log(`Chain: ${flashcardData.chain.length} cards, Chapters: ${flashcardData.chapters.length} cards`);
                 } catch (error) {
                     console.error('Error loading flashcards:', error);
@@ -401,60 +405,59 @@
             }
 
             async signUp(username, password) {
-                const response = await this.apiCall('auth', {
-                    action: 'signup',
-                    username,
-                    password
+                const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
                 });
                 
-                if (response.user) {
-                    authToken = response.session?.access_token;
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Signup failed');
+                }
+                
+                if (data.token) {
+                    authToken = data.token;
                     localStorage.setItem('authToken', authToken);
                 }
                 
-                return response;
+                return data;
             }
 
             async signIn(username, password) {
-                const response = await this.apiCall('auth', {
-                    action: 'signin',
-                    username,
-                    password
+                const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
                 });
                 
-                if (response.user) {
-                    authToken = response.session?.access_token;
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Signin failed');
+                }
+                
+                if (data.token) {
+                    authToken = data.token;
                     localStorage.setItem('authToken', authToken);
                 }
                 
-                return response;
-            }
-
-            async apiCall(endpoint, data) {
-                const url = `${API_BASE_URL}/${endpoint}`;
-                const headers = {
-                    'Content-Type': 'application/json',
-                };
-                
-                if (authToken) {
-                    headers['Authorization'] = `Bearer ${authToken}`;
-                }
-                
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(data)
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'API call failed');
-                }
-                
-                return response.json();
+                return data;
             }
 
             async signOut() {
+                try {
+                    if (authToken) {
+                        await fetch(`${API_BASE_URL}/auth/signout`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Signout error:', error);
+                }
+                
                 authToken = null;
                 localStorage.removeItem('authToken');
             }
@@ -467,9 +470,15 @@
                 if (!authToken) return {};
 
                 try {
-                    return await this.apiCall('flashcards', {
-                        action: 'getUserProgress'
+                    const response = await fetch(`${API_BASE_URL}/progress`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch progress');
+                    }
+                    
+                    return await response.json();
                 } catch (error) {
                     console.error('Error fetching user progress:', error);
                     return {};
@@ -492,14 +501,25 @@
                 }
 
                 try {
-                    await this.apiCall('flashcards', {
-                        action: 'saveProgress',
-                        setId,
-                        stats: {
-                            seen: Array.from(stats.seen),
-                            correct: Array.from(stats.correct)
-                        }
+                    const response = await fetch(`${API_BASE_URL}/progress`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            setId,
+                            stats: {
+                                seen: Array.from(stats.seen),
+                                correct: Array.from(stats.correct)
+                            }
+                        })
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save progress');
+                    }
+                    
                     console.log('Progress saved successfully');
                 } catch (error) {
                     console.error('Error saving user progress:', error);
