@@ -934,6 +934,9 @@
             
             sessionStats.seen.add(cardIdx);
             updateStats();
+            
+            // Reset the next card flag
+            window.waitingForNextCard = false;
         }
 
         function flipCard() {
@@ -1051,21 +1054,8 @@
                 }
             }
             
-            // Move to next card after delay
-            setTimeout(() => {
-                currentCardIndex++;
-                showNextCard();
-                
-                // Clear appropriate inputs based on set type
-                if (currentSet === 'chain') {
-                    document.getElementById('beforeAnswer').value = '';
-                    document.getElementById('afterAnswer').value = '';
-                } else {
-                    document.getElementById('userAnswer').value = '';
-                }
-                
-                document.getElementById('feedback').classList.add('hidden');
-            }, 3000);
+            // Set flag to wait for user to press Enter
+            window.waitingForNextCard = true;
         }
 
         function showFeedback(message, type) {
@@ -1077,20 +1067,42 @@
 
         function handleAnswerKeypress(event) {
             if (event.key === 'Enter') {
-                checkAnswer();
+                if (window.waitingForNextCard) {
+                    moveToNextCard();
+                } else {
+                    checkAnswer();
+                }
             }
         }
 
         function handleChainKeypress(event) {
             if (event.key === 'Enter') {
-                // If we're in the before field, move to after field
-                if (event.target.id === 'beforeAnswer') {
+                if (window.waitingForNextCard) {
+                    moveToNextCard();
+                } else if (event.target.id === 'beforeAnswer') {
+                    // If we're in the before field, move to after field
                     document.getElementById('afterAnswer').focus();
                 } else {
                     // If we're in the after field, check answer
                     checkChainAnswer();
                 }
             }
+        }
+
+        function moveToNextCard() {
+            currentCardIndex++;
+            showNextCard();
+            
+            // Clear appropriate inputs based on set type
+            if (currentSet === 'chain') {
+                document.getElementById('beforeAnswer').value = '';
+                document.getElementById('afterAnswer').value = '';
+            } else {
+                document.getElementById('userAnswer').value = '';
+            }
+            
+            document.getElementById('feedback').classList.add('hidden');
+            window.waitingForNextCard = false;
         }
 
         async function checkChainAnswer() {

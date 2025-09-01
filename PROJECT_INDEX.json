@@ -1,5 +1,5 @@
 {
-  "indexed_at": "2025-09-01T03:48:39.725792",
+  "indexed_at": "2025-09-01T04:18:36.048309",
   "root": ".",
   "project_structure": {
     "type": "tree",
@@ -155,5 +155,5 @@
       "https://deno.land/std@0.168.0/http/server.ts"
     ]
   },
-  "staleness_check": 1756108119.750421
+  "staleness_check": 1756109916.073872
 }
