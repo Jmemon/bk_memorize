@@ -1,5 +1,5 @@
 {
-  "indexed_at": "2025-09-01T04:18:36.048309",
+  "indexed_at": "2025-09-01T17:56:39.262343",
   "root": ".",
   "project_structure": {
     "type": "tree",
@@ -8,9 +8,12 @@
       ".",
       "\u251c\u2500\u2500 flashcards/ (2 files)",
       "\u251c\u2500\u2500 scripts/ (1 files)",
-      "\u251c\u2500\u2500 supabase/ (3 files)",
-      "\u2502   \u251c\u2500\u2500 functions/ (1 files)",
-      "\u2502   \u2502   \u2514\u2500\u2500 check-answer/ (1 files)",
+      "\u251c\u2500\u2500 supabase/ (6 files)",
+      "\u2502   \u251c\u2500\u2500 functions/ (4 files)",
+      "\u2502   \u2502   \u251c\u2500\u2500 _shared/ (1 files)",
+      "\u2502   \u2502   \u251c\u2500\u2500 auth/ (1 files)",
+      "\u2502   \u2502   \u251c\u2500\u2500 check-answer/ (1 files)",
+      "\u2502   \u2502   \u2514\u2500\u2500 flashcards/ (1 files)",
       "\u2502   \u2514\u2500\u2500 migrations/ (2 files)",
       "\u251c\u2500\u2500 package.json",
       "\u2514\u2500\u2500 README.md"
@@ -50,14 +53,15 @@
   },
   "directory_purposes": {
     "scripts": "Build and utility scripts",
-    "supabase/migrations": "Database migration files"
+    "supabase/migrations": "Database migration files",
+    "supabase/functions/auth": "Authentication and authorization logic"
   },
   "stats": {
-    "total_files": 10,
-    "total_directories": 7,
+    "total_files": 13,
+    "total_directories": 10,
     "fully_parsed": {
       "javascript": 1,
-      "typescript": 1
+      "typescript": 4
     },
     "listed_only": {
       "html": 1,
@@ -121,6 +125,36 @@
       "language": "sql",
       "parsed": false
     },
+    "supabase/functions/flashcards/index.ts": {
+      "language": "typescript",
+      "parsed": false,
+      "purpose": "Application entry point"
+    },
+    "supabase/functions/auth/index.ts": {
+      "language": "typescript",
+      "parsed": true,
+      "purpose": "Application entry point",
+      "imports": [
+        "https://deno.land/std@0.168.0/http/server.ts",
+        "https://esm.sh/@supabase/supabase-js@2",
+        "../_shared/cors.ts"
+      ],
+      "functions": {
+        "hashPassword": "async (password: string): Promise<string>"
+      },
+      "classes": {},
+      "variables": [
+        "supabaseUrl",
+        "supabaseServiceKey",
+        "supabase",
+        "email",
+        "encoder",
+        "data",
+        "hashBuffer",
+        "hashArray"
+      ],
+      "call_graph": {}
+    },
     "supabase/functions/check-answer/index.ts": {
       "language": "typescript",
       "parsed": true,
@@ -144,6 +178,10 @@
         "correctLower"
       ],
       "call_graph": {}
+    },
+    "supabase/functions/_shared/cors.ts": {
+      "language": "typescript",
+      "parsed": false
     }
   },
   "dependency_graph": {
@@ -151,9 +189,14 @@
       "fs",
       "path"
     ],
+    "supabase/functions/auth/index.ts": [
+      "https://deno.land/std@0.168.0/http/server.ts",
+      "https://esm.sh/@supabase/supabase-js@2",
+      "supabase/functions/_shared/cors.ts"
+    ],
     "supabase/functions/check-answer/index.ts": [
       "https://deno.land/std@0.168.0/http/server.ts"
     ]
   },
-  "staleness_check": 1756109916.073872
+  "staleness_check": 1756158999.287277
 }
