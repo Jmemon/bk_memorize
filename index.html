@@ -517,7 +517,7 @@
                         .from('user_progress')
                         .select(`
                             *,
-                            flashcards!inner(card_index),
+                            flashcards!inner(card_index)
                             flashcard_sets!inner(set_id)
                         `)
                         .eq('user_id', user.id);
