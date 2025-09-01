@@ -374,7 +374,7 @@
                     // Test the connection first
                     const { data, error } = await supabase
                         .from('flashcard_sets')
-                        .select('count(*)')
+                        .select('*', { count: 'exact', head: true })
                         .limit(1);
                     
                     if (error) {
