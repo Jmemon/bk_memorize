@@ -313,8 +313,23 @@
             </div>
 
             <div class="answer-section">
-                <input type="text" id="userAnswer" placeholder="Type your answer here..." onkeypress="handleAnswerKeypress(event)" />
-                <button class="btn btn-success" onclick="checkAnswer()">Check Answer</button>
+                <!-- Default single input for most sets -->
+                <div id="singleAnswerInput">
+                    <input type="text" id="userAnswer" placeholder="Type your answer here..." onkeypress="handleAnswerKeypress(event)" />
+                    <button class="btn btn-success" onclick="checkAnswer()">Check Answer</button>
+                </div>
+                
+                <!-- Chain set specific UI with before/after inputs -->
+                <div id="chainAnswerInputs" class="hidden">
+                    <div class="input-group">
+                        <input type="text" id="beforeAnswer" placeholder="Before..." onkeypress="handleChainKeypress(event)" />
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="afterAnswer" placeholder="After..." onkeypress="handleChainKeypress(event)" />
+                    </div>
+                    <button class="btn btn-success" onclick="checkChainAnswer()">Check Answer</button>
+                </div>
+                
                 <div id="feedback" class="feedback hidden"></div>
             </div>
         </div>
@@ -889,17 +904,36 @@
             document.getElementById('flashcard').classList.remove('flipped');
             isFlipped = false;
             
-            // Clear previous answer and feedback
-            document.getElementById('userAnswer').value = '';
+            // Show appropriate input UI based on set type
+            if (currentSet === 'chain') {
+                document.getElementById('singleAnswerInput').classList.add('hidden');
+                document.getElementById('chainAnswerInputs').classList.remove('hidden');
+                
+                // Clear chain inputs
+                document.getElementById('beforeAnswer').value = '';
+                document.getElementById('afterAnswer').value = '';
+                
+                // Focus on first input
+                setTimeout(() => {
+                    document.getElementById('beforeAnswer').focus();
+                }, 100);
+            } else {
+                document.getElementById('chainAnswerInputs').classList.add('hidden');
+                document.getElementById('singleAnswerInput').classList.remove('hidden');
+                
+                // Clear single input
+                document.getElementById('userAnswer').value = '';
+                
+                // Focus on input
+                setTimeout(() => {
+                    document.getElementById('userAnswer').focus();
+                }, 100);
+            }
+            
             document.getElementById('feedback').classList.add('hidden');
             
             sessionStats.seen.add(cardIdx);
             updateStats();
-            
-            // Focus on input for better UX
-            setTimeout(() => {
-                document.getElementById('userAnswer').focus();
-            }, 100);
         }
 
         function flipCard() {
@@ -1021,7 +1055,15 @@
             setTimeout(() => {
                 currentCardIndex++;
                 showNextCard();
-                document.getElementById('userAnswer').value = '';
+                
+                // Clear appropriate inputs based on set type
+                if (currentSet === 'chain') {
+                    document.getElementById('beforeAnswer').value = '';
+                    document.getElementById('afterAnswer').value = '';
+                } else {
+                    document.getElementById('userAnswer').value = '';
+                }
+                
                 document.getElementById('feedback').classList.add('hidden');
             }, 3000);
         }
@@ -1036,6 +1078,74 @@
         function handleAnswerKeypress(event) {
             if (event.key === 'Enter') {
                 checkAnswer();
+            }
+        }
+
+        function handleChainKeypress(event) {
+            if (event.key === 'Enter') {
+                // If we're in the before field, move to after field
+                if (event.target.id === 'beforeAnswer') {
+                    document.getElementById('afterAnswer').focus();
+                } else {
+                    // If we're in the after field, check answer
+                    checkChainAnswer();
+                }
+            }
+        }
+
+        async function checkChainAnswer() {
+            const beforeAnswer = document.getElementById('beforeAnswer').value.trim();
+            const afterAnswer = document.getElementById('afterAnswer').value.trim();
+            
+            if (!beforeAnswer || !afterAnswer) {
+                showFeedback('Please fill in both Before and After fields!', 'incorrect');
+                return;
+            }
+
+            const cardIdx = cardOrder[currentCardIndex];
+            const card = currentCards[cardIdx];
+            const correctAnswer = card.back;
+            
+            // Concatenate user answers in the required format
+            const userAnswer = `Before: ${beforeAnswer}\nAfter: ${afterAnswer}`;
+            
+            // Show loading state
+            const feedbackDiv = document.getElementById('feedback');
+            feedbackDiv.innerHTML = '<div class="loading"></div> Checking your answer...';
+            feedbackDiv.className = 'feedback';
+            feedbackDiv.classList.remove('hidden');
+            
+            try {
+                let assessment;
+                
+                // Try to use Supabase Edge Function, fall back to simple assessment
+                try {
+                    const response = await supabase.functions.invoke('check-answer', {
+                        body: {
+                            question: card.front,
+                            correctAnswer: correctAnswer,
+                            userAnswer: userAnswer
+                        }
+                    });
+                    
+                    if (response.error) {
+                        throw new Error(response.error.message || 'Edge function error');
+                    }
+                    
+                    assessment = response.data;
+                } catch (edgeFunctionError) {
+                    console.warn('Edge function not available, using simple assessment:', edgeFunctionError.message);
+                    assessment = simpleAssessment(userAnswer, correctAnswer);
+                }
+                
+                // Handle the assessment result
+                await handleAssessmentResult(assessment, cardIdx);
+                
+            } catch (error) {
+                console.error('Error checking answer:', error);
+                // Fallback to simple string comparison
+                const assessment = simpleAssessment(userAnswer, correctAnswer);
+                await handleAssessmentResult(assessment, cardIdx);
             }
         }
 
