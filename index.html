@@ -283,8 +283,8 @@
                 <div id="overallStats"></div>
             </div>
             <div class="set-buttons">
-                <button class="btn" onclick="startSet('chain')">Brothers Karamazov - Chain</button>
-                <button class="btn btn-secondary" onclick="startSet('chapters')">Brothers Karamazov - Chapters</button>
+                <button class="btn" onclick="startSet('chain')">Before/After</button>
+                <button class="btn btn-secondary" onclick="startSet('chapters')">Chapters</button>
             </div>
         </div>
 
@@ -840,7 +840,7 @@
             }
             
             document.getElementById('setTitle').textContent = 
-                setId === 'chain' ? 'Brothers Karamazov - Chain' : 'Brothers Karamazov - Chapters';
+                setId === 'chain' ? 'Before/After' : 'Chapters';
             
             document.getElementById('homeScreen').classList.add('hidden');
             document.getElementById('flashcardScreen').classList.remove('hidden');
